@@ -60,7 +60,7 @@ type LookaheadAssertion rune
 
 func (l *LookaheadAssertion) sealed() {}
 
-func (l *LookaheadAssertion) Capture(tokens []string) error { // nolint
+func (l *LookaheadAssertion) Capture(tokens []string) error {
 	rn := tokens[0][0]
 	switch rn {
 	case '!', '=':

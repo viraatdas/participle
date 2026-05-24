@@ -114,8 +114,8 @@ func (p *parseContext) printTrace(n node) func() {
 	if p.trace != nil {
 		tok := p.PeekingLexer.Peek()
 		fmt.Fprintf(p.trace, "%s%q %s\n", strings.Repeat(" ", p.depth*2), tok, n.GoString())
-		p.depth += 1
-		return func() { p.depth -= 1 }
+		p.depth++
+		return func() { p.depth-- }
 	}
 	return func() {}
 }

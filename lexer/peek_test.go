@@ -63,7 +63,7 @@ func BenchmarkPeekingLexer_Peek(b *testing.B) {
 	l.Next()
 	t := l.Peek()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		t = l.Peek()
 		if t.EOF() {
 			return

@@ -69,11 +69,11 @@ func (g *generatorContext) parseType(t reflect.Type) (_ node, returnedError erro
 	if t.Implements(parseableType) {
 		return &parseable{t.Elem()}, nil
 	}
-	if reflect.PtrTo(t).Implements(parseableType) {
+	if reflect.PointerTo(t).Implements(parseableType) {
 		return &parseable{t}, nil
 	}
-	switch t.Kind() { // nolint: exhaustive
-	case reflect.Slice, reflect.Ptr:
+	switch t.Kind() { //nolint:exhaustive // explicit kinds handled
+	case reflect.Slice, reflect.Pointer:
 		t = indirectType(t.Elem())
 		if t.Kind() != reflect.Struct {
 			return nil, fmt.Errorf("expected a struct but got %T", t)
@@ -257,7 +257,7 @@ func (g *generatorContext) parseCapture(slexer *structLexer) (node, error) {
 }
 
 // A reference in the form <identifier> refers to a named token from the lexer.
-func (g *generatorContext) parseReference(slexer *structLexer) (node, error) { // nolint: interfacer
+func (g *generatorContext) parseReference(slexer *structLexer) (node, error) {
 	token, err := slexer.Next()
 	if err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (g *generatorContext) parseNegation(slexer *structLexer) (node, error) {
 //
 // Note that for this to match, the tokeniser must be able to produce this string. For example,
 // if the tokeniser only produces individual characters but the literal is "hello", or vice versa.
-func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nolint: interfacer
+func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) {
 	token, err := lex.Next()
 	if err != nil {
 		return nil, err
@@ -410,12 +410,12 @@ func (g *generatorContext) parseLiteral(lex *structLexer) (node, error) { // nol
 }
 
 func indirectType(t reflect.Type) reflect.Type {
-	if t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
 		return indirectType(t.Elem())
 	}
 	return t
 }
 
 func implements(t, i reflect.Type) bool {
-	return t.Implements(i) || reflect.PtrTo(t).Implements(i)
+	return t.Implements(i) || reflect.PointerTo(t).Implements(i)
 }

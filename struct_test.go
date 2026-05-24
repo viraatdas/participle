@@ -2,6 +2,7 @@ package participle
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"text/scanner"
 
@@ -15,7 +16,7 @@ func TestStructLexerTokens(t *testing.T) {
 		B string `34`
 	}
 
-	scan, err := lexStruct(reflect.TypeOf(testScanner{}))
+	scan, err := lexStruct(reflect.TypeFor[testScanner]())
 	require.NoError(t, err)
 	t12 := lexer.Token{Type: scanner.Int, Value: "12", Pos: lexer.Position{Filename: "testScanner", Line: 1, Column: 1}}
 	t34 := lexer.Token{Type: scanner.Int, Value: "34", Pos: lexer.Position{Filename: "B", Line: 2, Column: 1}}
@@ -41,7 +42,7 @@ func TestStructLexer(t *testing.T) {
 	r, err := lexStruct(gt)
 	require.NoError(t, err)
 	f := []structLexerField{}
-	s := ""
+	var s strings.Builder
 	for {
 		_, err := r.Peek()
 		require.NoError(t, err)
@@ -51,9 +52,9 @@ func TestStructLexer(t *testing.T) {
 			break
 		}
 		f = append(f, r.Field())
-		s += rn.String()
+		s.WriteString(rn.String())
 	}
-	require.Equal(t, `a|b`, s)
+	require.Equal(t, `a|b`, s.String())
 	f0 := r.GetField(0)
 	f1 := r.GetField(1)
 	require.Equal(t, []structLexerField{f0, f0, f1}, f)
@@ -83,7 +84,7 @@ func mustPeek(scan *structLexer) *lexer.Token {
 	return token
 }
 
-func mustNext(scan *structLexer) *lexer.Token { // nolint: interfacer
+func mustNext(scan *structLexer) *lexer.Token {
 	token, err := scan.Next()
 	if err != nil {
 		panic(err)

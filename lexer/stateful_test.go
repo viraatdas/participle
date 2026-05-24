@@ -175,7 +175,6 @@ func TestStatefulLexer(t *testing.T) {
 			err:   "1:1: lexer: rule \"NoMatch\": did not consume any input",
 		},
 	}
-	// nolint: scopelint
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			def, err := lexer.New(test.rules)
@@ -382,7 +381,7 @@ func BenchmarkStateful(b *testing.B) {
 	def := lexer.Must(lexer.New(interpolatedRules))
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		lex, err := def.Lex("", strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
@@ -420,7 +419,7 @@ func BenchmarkStatefulBackrefs(b *testing.B) {
 	require.NoError(b, err)
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		lex, err := def.Lex("", strings.NewReader(source))
 		if err != nil {
 			b.Fatal(err)
@@ -453,7 +452,7 @@ func basicBenchmark(b *testing.B, def lexer.Definition) {
 	b.ReportMetric(float64(len(source)), "B")
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		lex, err := def.(lexer.StringDefinition).LexString("", source)
 		if err != nil {
 			b.Fatal(err)

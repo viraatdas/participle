@@ -42,7 +42,7 @@ func main() {
 	ctx.FatalIfErrorf(err)
 
 	funcs := map[string]Function{
-		"ADD": func(args ...interface{}) (interface{}, error) {
+		"ADD": func(args ...any) (any, error) {
 			return args[0].(float64) + args[1].(float64), nil
 		},
 	}

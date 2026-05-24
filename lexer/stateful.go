@@ -89,7 +89,7 @@ func (r *Rule) MarshalJSON() ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("lexer: failed to map action: %w", err)
 		}
-		jaction := map[string]interface{}{}
+		jaction := map[string]any{}
 		err = json.Unmarshal(actionData, &jaction)
 		if err != nil {
 			return nil, fmt.Errorf("lexer: failed to map action: %w", err)
@@ -200,7 +200,7 @@ type include struct {
 	State string `json:"state"`
 }
 
-func (i include) applyAction(lexer *StatefulLexer, groups []string) error {
+func (i include) applyAction(_ *StatefulLexer, _ []string) error {
 	panic("should not be called")
 }
 
@@ -211,7 +211,7 @@ func (i include) applyRules(state string, rule int, rules compiledRules) error {
 	}
 	clone := make([]compiledRule, len(includedRules))
 	copy(clone, includedRules)
-	rules[state] = append(rules[state][:rule], append(clone, rules[state][rule+1:]...)...) // nolint: makezero
+	rules[state] = append(rules[state][:rule], append(clone, rules[state][rule+1:]...)...) //nolint:makezero // intentional: clone is appended after fixed-size head
 	return nil
 }
 
@@ -257,7 +257,7 @@ func New(rules Rules) (*StatefulDefinition, error) {
 			if match == nil || len(match[1])%2 == 0 {
 				re, err = regexp.Compile(pattern)
 				if err != nil {
-					return nil, fmt.Errorf("lexer: %s.%d: %s", key, i, err)
+					return nil, fmt.Errorf("lexer: %s.%d: %w", key, i, err)
 				}
 			}
 			compiled[key] = append(compiled[key], compiledRule{
@@ -272,7 +272,7 @@ restart:
 		for i, rule := range rules {
 			if action, ok := rule.Action.(RulesAction); ok {
 				if err := action.applyRules(state, i, compiled); err != nil {
-					return nil, fmt.Errorf("lexer: %s.%d: %s", state, i, err)
+					return nil, fmt.Errorf("lexer: %s.%d: %w", state, i, err)
 				}
 				goto restart
 			}
@@ -335,7 +335,7 @@ func (d *StatefulDefinition) LexString(filename string, s string) (Lexer, error)
 	}, nil
 }
 
-func (d *StatefulDefinition) Lex(filename string, r io.Reader) (Lexer, error) { // nolint: golint
+func (d *StatefulDefinition) Lex(filename string, r io.Reader) (Lexer, error) {
 	w := &strings.Builder{}
 	_, err := io.Copy(w, r)
 	if err != nil {
@@ -344,7 +344,7 @@ func (d *StatefulDefinition) Lex(filename string, r io.Reader) (Lexer, error) { 
 	return d.LexString(filename, w.String())
 }
 
-func (d *StatefulDefinition) Symbols() map[string]TokenType { // nolint: golint
+func (d *StatefulDefinition) Symbols() map[string]TokenType {
 	return d.symbols
 }
 
@@ -362,7 +362,7 @@ type StatefulLexer struct {
 	pos   Position
 }
 
-func (l *StatefulLexer) Next() (Token, error) { // nolint: golint
+func (l *StatefulLexer) Next() (Token, error) {
 	parent := l.stack[len(l.stack)-1]
 	rules := l.def.rules[parent.name]
 next:
@@ -473,7 +473,7 @@ func BackrefRegex(backrefCache *sync.Map, input string, groups []string) (*regex
 		re, err = regexp.Compile("^(?:" + pattern + ")")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("invalid backref expansion: %q: %s", pattern, err)
+		return nil, fmt.Errorf("invalid backref expansion: %q: %w", pattern, err)
 	}
 	backrefCache.Store(key, re)
 	return re, nil

@@ -64,7 +64,7 @@ func Lex(filename string, r io.Reader) Lexer {
 	s := &scanner.Scanner{}
 	s.Init(r)
 	lexer := lexWithScanner(filename, s)
-	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
+	lexer.scanner.Error = func(_ *scanner.Scanner, msg string) {
 		lexer.err = errorf(Position(lexer.scanner.Pos()), "%s", msg)
 	}
 	return lexer

@@ -11,7 +11,7 @@ import (
 func TestExe(t *testing.T) {
 	r, err := os.Open("github-webhook.json")
 	require.NoError(t, err)
-	input := map[string]interface{}{}
+	input := map[string]any{}
 	err = json.NewDecoder(r).Decode(&input)
 	require.NoError(t, err)
 

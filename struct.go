@@ -121,7 +121,7 @@ func collectFieldIndexes(s reflect.Type) (out [][]int, err error) {
 		return nil, fmt.Errorf("expected a struct but got %q", s)
 	}
 	defer decorate(&err, s.String)
-	for i := 0; i < s.NumField(); i++ {
+	for i := range s.NumField() {
 		f := s.Field(i)
 		switch {
 		case f.Anonymous && f.Type.Kind() == reflect.Struct: // Embedded struct.
@@ -157,7 +157,7 @@ func newTagLexer(filename string, tag string) *tagLexer {
 		filename: filename,
 		scanner:  s,
 	}
-	lexer.scanner.Error = func(s *scanner.Scanner, msg string) {
+	lexer.scanner.Error = func(_ *scanner.Scanner, msg string) {
 		// This is to support single quoted strings. Hacky.
 		if !strings.HasSuffix(msg, "char literal") {
 			lexer.err = fmt.Errorf("%s: %s", lexer.scanner.Pos(), msg)

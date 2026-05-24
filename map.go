@@ -51,16 +51,16 @@ func Unquote(types ...string) Option {
 func unquote(s string) (string, error) {
 	quote := s[0]
 	s = s[1 : len(s)-1]
-	out := ""
+	var out strings.Builder
 	for s != "" {
 		value, _, tail, err := strconv.UnquoteChar(s, quote)
 		if err != nil {
 			return "", err
 		}
 		s = tail
-		out += string(value)
+		out.WriteRune(value)
 	}
-	return out, nil
+	return out.String(), nil
 }
 
 // Upper is an Option that upper-cases all tokens of the given type. Useful for case normalisation.

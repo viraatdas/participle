@@ -48,7 +48,7 @@ type UnexpectedTokenError struct {
 
 func (u *UnexpectedTokenError) Error() string { return FormatError(u) }
 
-func (u *UnexpectedTokenError) Message() string { // nolint: golint
+func (u *UnexpectedTokenError) Message() string {
 	var expected string
 	if u.expectNode != nil {
 		expected = fmt.Sprintf(" (expected %s)", u.expectNode)
@@ -57,7 +57,7 @@ func (u *UnexpectedTokenError) Message() string { // nolint: golint
 	}
 	return fmt.Sprintf("unexpected token %q%s", u.Unexpected, expected)
 }
-func (u *UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos } // nolint: golint
+func (u *UnexpectedTokenError) Position() lexer.Position { return u.Unexpected.Pos }
 
 // ParseError is returned when a parse error occurs.
 //
@@ -73,7 +73,7 @@ func (p *ParseError) Message() string          { return p.Msg }
 func (p *ParseError) Position() lexer.Position { return p.Pos }
 
 // Errorf creates a new Error at the given position.
-func Errorf(pos lexer.Position, format string, args ...interface{}) Error {
+func Errorf(pos lexer.Position, format string, args ...any) Error {
 	return &ParseError{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
@@ -90,9 +90,9 @@ func (w *wrappingParseError) Unwrap() error { return w.err }
 // "pos" will be ignored.
 //
 // The returned error implements the Unwrap() method supported by the errors package.
-func Wrapf(pos lexer.Position, err error, format string, args ...interface{}) Error {
+func Wrapf(pos lexer.Position, err error, format string, args ...any) Error {
 	var msg string
-	if perr, ok := err.(Error); ok {
+	if perr, ok := err.(Error); ok { //nolint:errorlint // intentional: only re-use position of direct Error values
 		pos = perr.Position()
 		msg = fmt.Sprintf("%s: %s", fmt.Sprintf(format, args...), perr.Message())
 	} else {

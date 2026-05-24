@@ -134,7 +134,7 @@ h1 {
 	default:
 		panic(repr.String(n))
 	}
-	return
+	return s
 }
 
 func countProductions(productions map[string]*production, n ebnf.Node) (size int) {
@@ -175,7 +175,7 @@ func countProductions(productions map[string]*production, n ebnf.Node) (size int
 	default:
 		panic(repr.String(n))
 	}
-	return
+	return size
 }
 
 func main() {
@@ -204,7 +204,7 @@ func main() {
 	str := generate(productions, ast)
 
 	if *outputFile != "" {
-		err := os.WriteFile(*outputFile, []byte(str), 0644) // nolint
+		err := os.WriteFile(*outputFile, []byte(str), 0644) //nolint:gosec // CLI tool writes to user-specified path
 		if err != nil {
 			panic(err)
 		}
@@ -237,7 +237,7 @@ func writeAssetFiles() (err error) {
 		if err != nil {
 			return err
 		}
-		err = os.WriteFile(fileName, data, 0644) // nolint
+		err = os.WriteFile(fileName, data, 0644) //nolint:gosec // CLI tool writes to user-specified path
 		if err != nil {
 			return err
 		}

@@ -15,16 +15,16 @@ var (
 	// MaxIterations limits the number of elements capturable by {}.
 	MaxIterations = 1000000
 
-	positionType        = reflect.TypeOf(lexer.Position{})
-	tokenType           = reflect.TypeOf(lexer.Token{})
-	tokensType          = reflect.TypeOf([]lexer.Token{})
-	captureType         = reflect.TypeOf((*Capture)(nil)).Elem()
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-	parseableType       = reflect.TypeOf((*Parseable)(nil)).Elem()
+	positionType        = reflect.TypeFor[lexer.Position]()
+	tokenType           = reflect.TypeFor[lexer.Token]()
+	tokensType          = reflect.TypeFor[[]lexer.Token]()
+	captureType         = reflect.TypeFor[Capture]()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
+	parseableType       = reflect.TypeFor[Parseable]()
 
 	// NextMatch should be returned by Parseable.Parse() method implementations to indicate
 	// that the node did not match and that other matches should be attempted, if appropriate.
-	NextMatch = errors.New("no match") // nolint: golint
+	NextMatch = errors.New("no match") //nolint:revive,errname,staticcheck // exported error sentinel, name is part of the API
 )
 
 // A node in the grammar.
@@ -44,7 +44,7 @@ func decorate(err *error, name func() string) {
 	if *err == nil {
 		return
 	}
-	if perr, ok := (*err).(Error); ok {
+	if perr, ok := (*err).(Error); ok { //nolint:errorlint // intentional: only decorate direct Error values
 		*err = Errorf(perr.Position(), "%s: %s", name(), perr.Message())
 	} else {
 		*err = &ParseError{Msg: fmt.Sprintf("%s: %s", name(), *err)}
@@ -59,13 +59,13 @@ type parseable struct {
 func (p *parseable) String() string   { return ebnf(p) }
 func (p *parseable) GoString() string { return p.t.String() }
 
-func (p *parseable) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (p *parseable) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(p)()
 	rv := reflect.New(p.t)
 	v := rv.Interface().(Parseable)
 	err = v.Parse(&ctx.PeekingLexer)
 	if err != nil {
-		if err == NextMatch {
+		if errors.Is(err, NextMatch) {
 			return nil, nil
 		}
 		return nil, err
@@ -82,11 +82,11 @@ type custom struct {
 func (c *custom) String() string   { return ebnf(c) }
 func (c *custom) GoString() string { return c.typ.Name() }
 
-func (c *custom) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (c *custom) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(c)()
 	results := c.parseFn.Call([]reflect.Value{reflect.ValueOf(&ctx.PeekingLexer)})
 	if err, _ := results[1].Interface().(error); err != nil {
-		if err == NextMatch {
+		if errors.Is(err, NextMatch) {
 			return nil, nil
 		}
 		return nil, err
@@ -148,7 +148,7 @@ func newStrct(typ reflect.Type) *strct {
 func (s *strct) String() string   { return ebnf(s) }
 func (s *strct) GoString() string { return s.typ.Name() }
 
-func (s *strct) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (s *strct) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(s)()
 	sv := reflect.New(s.typ).Elem()
 	start := ctx.RawCursor()
@@ -234,8 +234,8 @@ func (g *group) GoString() string { return fmt.Sprintf("group{%s}", g.mode) }
 func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(g)()
 	// Configure min/max matches.
-	min := 1
-	max := 1
+	minMatches := 1
+	maxMatches := 1
 	switch g.mode {
 	case groupMatchNonEmpty:
 		out, err = g.expr.Parse(ctx, parent)
@@ -250,16 +250,16 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 	case groupMatchOnce:
 		return g.expr.Parse(ctx, parent)
 	case groupMatchZeroOrOne:
-		min = 0
+		minMatches = 0
 	case groupMatchZeroOrMore:
-		min = 0
-		max = MaxIterations
+		minMatches = 0
+		maxMatches = MaxIterations
 	case groupMatchOneOrMore:
-		min = 1
-		max = MaxIterations
+		minMatches = 1
+		maxMatches = MaxIterations
 	}
 	matches := 0
-	for ; matches < max; matches++ {
+	for ; matches < maxMatches; matches++ {
 		branch := ctx.Branch()
 		v, err := g.expr.Parse(branch, parent)
 		if err != nil {
@@ -283,11 +283,11 @@ func (g *group) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Va
 		return nil, Errorf(t.Pos, "too many iterations of %s (> %d)", g, MaxIterations)
 	}
 	// avoid returning errors in parent nodes if the group is optional
-	if matches > 0 && matches < min {
+	if matches > 0 && matches < minMatches {
 		return out, Errorf(t.Pos, "sub-expression %s must match at least once", g)
 	}
 	// The idea here is that something like "a"? is a successful match and that parsing should proceed.
-	if min == 0 && out == nil {
+	if minMatches == 0 && out == nil {
 		out = []reflect.Value{}
 	}
 	return out, nil
@@ -431,7 +431,7 @@ type reference struct {
 func (r *reference) String() string   { return ebnf(r) }
 func (r *reference) GoString() string { return fmt.Sprintf("reference{%s}", r.identifier) }
 
-func (r *reference) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (r *reference) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(r)()
 	token, cursor := ctx.PeekAny(func(t lexer.Token) bool {
 		return t.Type == r.typ
@@ -453,7 +453,7 @@ type literal struct {
 func (l *literal) String() string   { return ebnf(l) }
 func (l *literal) GoString() string { return fmt.Sprintf("literal{%q, %q}", l.s, l.tt) }
 
-func (l *literal) Parse(ctx *parseContext, parent reflect.Value) (out []reflect.Value, err error) {
+func (l *literal) Parse(ctx *parseContext, _ reflect.Value) (out []reflect.Value, err error) {
 	defer ctx.printTrace(l)()
 	match := func(t lexer.Token) bool {
 		var equal bool
@@ -506,10 +506,10 @@ func (n *negation) Parse(ctx *parseContext, parent reflect.Value) (out []reflect
 // This will dereference pointers, and attempt to parse strings into integer values, floats, etc.
 func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err error) {
 	for _, v := range values {
-		for t != v.Type() && t.Kind() == reflect.Ptr && v.Kind() != reflect.Ptr {
+		for t != v.Type() && t.Kind() == reflect.Pointer && v.Kind() != reflect.Pointer {
 			// This can occur during partial failure.
 			if !v.CanAddr() {
-				return
+				return out, err
 			}
 			v = v.Addr()
 		}
@@ -524,7 +524,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 		}
 
 		kind := t.Kind()
-		switch kind { // nolint: exhaustive
+		switch kind { //nolint:exhaustive // numeric kinds only
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(v.String(), 0, sizeOfKind(kind))
 			if err != nil {
@@ -559,7 +559,7 @@ func conform(t reflect.Type, values []reflect.Value) (out []reflect.Value, err e
 }
 
 func sizeOfKind(kind reflect.Kind) int {
-	switch kind { // nolint: exhaustive
+	switch kind { //nolint:exhaustive // numeric kinds only
 	case reflect.Int8, reflect.Uint8:
 		return 8
 	case reflect.Int16, reflect.Uint16:
@@ -578,7 +578,7 @@ func maybeRef(tmpl reflect.Type, strct reflect.Value) reflect.Value {
 	if strct.Type() == tmpl {
 		return strct
 	}
-	if tmpl.Kind() == reflect.Ptr {
+	if tmpl.Kind() == reflect.Pointer {
 		if strct.CanAddr() {
 			return strct.Addr()
 		}
@@ -596,11 +596,11 @@ func maybeRef(tmpl reflect.Type, strct reflect.Value) reflect.Value {
 //
 // For all other types, an attempt will be made to convert the string to the corresponding
 // type (int, float32, etc.).
-func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { // nolint: gocognit
+func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField, fieldValue []reflect.Value) (err error) { //nolint:gocognit
 	f := strct.FieldByIndex(field.Index)
 
 	// Any kind of pointer, hydrate it first.
-	if f.Kind() == reflect.Ptr {
+	if f.Kind() == reflect.Pointer {
 		if f.IsNil() {
 			fv := reflect.New(f.Type().Elem()).Elem()
 			f.Set(fv.Addr())
@@ -648,8 +648,8 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 
 	if f.Kind() == reflect.Slice {
 		sliceElemType := f.Type().Elem()
-		if sliceElemType.Implements(captureType) || reflect.PtrTo(sliceElemType).Implements(captureType) {
-			if sliceElemType.Kind() == reflect.Ptr {
+		if sliceElemType.Implements(captureType) || reflect.PointerTo(sliceElemType).Implements(captureType) {
+			if sliceElemType.Kind() == reflect.Pointer {
 				sliceElemType = sliceElemType.Elem()
 			}
 			for _, v := range fieldValue {
@@ -658,7 +658,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 					return Wrapf(pos, err, "failed to capture")
 				}
 				eltValue := reflect.ValueOf(d)
-				if f.Type().Elem().Kind() != reflect.Ptr {
+				if f.Type().Elem().Kind() != reflect.Pointer {
 					eltValue = eltValue.Elem()
 				}
 				f.Set(reflect.Append(f, eltValue))
@@ -682,11 +682,12 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 		if len(fieldValue) == 0 {
 			return nil
 		}
-		accumulated := f.String()
+		var sb strings.Builder
+		sb.WriteString(f.String())
 		for _, v := range fieldValue {
-			accumulated += v.String()
+			sb.WriteString(v.String())
 		}
-		f.SetString(accumulated)
+		f.SetString(sb.String())
 		return nil
 	}
 
@@ -710,7 +711,7 @@ func setField(tokens []lexer.Token, strct reflect.Value, field structLexerField,
 
 	fv := fieldValue[0]
 
-	switch f.Kind() { // nolint: exhaustive
+	switch f.Kind() { //nolint:exhaustive // supported field kinds
 	// Numeric types will increment if the token can not be coerced.
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if fv.Type() != f.Type() {

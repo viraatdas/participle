@@ -531,7 +531,7 @@ EBNFOption      = "[" Expression "]" .
 Repetition  = "{" Expression "}" .
 
 `)
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, _ = parser.ParseString("", source)
 	}
 }
@@ -864,7 +864,6 @@ func TestInvalidNumbers(t *testing.T) {
 		{name: "InvalidFloat64", input: "float64 asdf", err: true},
 	}
 	for _, test := range tests {
-		// nolint: scopelint
 		t.Run(test.name, func(t *testing.T) {
 			actual, err := p.ParseString("", test.input)
 			if test.err {
@@ -1085,13 +1084,12 @@ func TestIssue62(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// nolint: structcheck, unused
 func TestIssue71(t *testing.T) {
-	type Sub struct {
-		name string `@Ident`
+	type Sub struct { //nolint:unused // exercises unexported-field handling
+		name string `@Ident` //nolint:unused // exercises unexported-field handling
 	}
 	type grammar struct {
-		pattern *Sub `@@`
+		pattern *Sub `@@` //nolint:unused // exercises unexported-field handling
 	}
 
 	_, err := participle.Build[grammar]()
@@ -1417,14 +1415,14 @@ func TestEndPos(t *testing.T) {
 	}
 
 	var (
-		Lexer = lexer.Must(lexer.New(lexer.Rules{
+		Lexer = lexer.Must(lexer.New(lexer.Rules{ //nolint:gocritic // intentional capitalization to mimic package-level vars
 			"Root": {
 				{"Ident", `[\w:]+`, nil},
 				{"Whitespace", `[\r\t ]+`, nil},
 			},
 		}))
 
-		Parser = participle.MustBuild[AST](
+		Parser = participle.MustBuild[AST]( //nolint:gocritic // intentional capitalization to mimic package-level vars
 			participle.Lexer(Lexer),
 			participle.Elide("Whitespace"),
 		)
@@ -1483,7 +1481,7 @@ func (c *sliceCapture) Capture(values []string) error {
 	return nil
 }
 
-func TestCaptureOnSliceElements(t *testing.T) { // nolint:dupl
+func TestCaptureOnSliceElements(t *testing.T) { //nolint:dupl // intentional structural similarity
 	type capture struct {
 		Single   *sliceCapture   `@Capture`
 		Slice    []sliceCapture  `@Capture @Capture`
@@ -1525,7 +1523,7 @@ func (s *sliceParse) Parse(lex *lexer.PeekingLexer) error {
 	return nil
 }
 
-func TestParseOnSliceElements(t *testing.T) { // nolint:dupl
+func TestParseOnSliceElements(t *testing.T) { //nolint:dupl // intentional structural similarity
 	type parse struct {
 		Single *sliceParse  `@@`
 		Slice  []sliceParse `@@+`
@@ -1602,7 +1600,7 @@ func BenchmarkIssue143(b *testing.B) {
 	input := "<x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x> <x>"
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if _, err := disjunctionParser.ParseString("", input); err != nil {
 			panic(err)
 		}
@@ -1651,7 +1649,7 @@ func TestMatchEOF(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestParseExplicitElidedIdent(t *testing.T) { // nolint
+func TestParseExplicitElidedIdent(t *testing.T) {
 	lex := lexer.MustSimple([]lexer.SimpleRule{
 		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
 		{"Comment", `/\*[^*]*\*/`},
@@ -1672,7 +1670,7 @@ func TestParseExplicitElidedIdent(t *testing.T) { // nolint
 	assert.Equal(t, &grammar{Comment: `/* Comment */`, Ident: "hello"}, actual)
 }
 
-func TestParseExplicitElidedTypedLiteral(t *testing.T) { // nolint
+func TestParseExplicitElidedTypedLiteral(t *testing.T) {
 	lex := lexer.MustSimple([]lexer.SimpleRule{
 		{"Ident", `[a-zA-Z](\w|\.|/|:|-)*`},
 		{"Comment", `/\*[^*]*\*/`},
@@ -1714,7 +1712,7 @@ type RootParseableFail struct{}
 
 func (*RootParseableFail) String() string   { return "" }
 func (*RootParseableFail) GoString() string { return "" }
-func (*RootParseableFail) Parse(lex *lexer.PeekingLexer) error {
+func (*RootParseableFail) Parse(_ *lexer.PeekingLexer) error {
 	return errors.New("always fail immediately")
 }
 
@@ -1742,14 +1740,15 @@ func TestParserWithCustomProduction(t *testing.T) {
 	}
 
 	p := mustTestParser[grammar](t, participle.ParseTypeWith(func(lex *lexer.PeekingLexer) (TestCustom, error) {
-		switch peek := lex.Peek(); {
-		case peek.Type == scanner.Int || peek.Type == scanner.Float:
+		peek := lex.Peek()
+		switch peek.Type {
+		case scanner.Int, scanner.Float:
 			v, err := strconv.ParseFloat(lex.Next().Value, 64)
 			if err != nil {
 				return nil, err
 			}
 			return CustomNumber(v), nil
-		case peek.Type == scanner.Ident:
+		case scanner.Ident:
 			name := lex.Next().Value
 			if name == "true" || name == "false" {
 				return CustomBoolean(name == "true"), nil

@@ -22,12 +22,12 @@ type Error struct {
 var _ errorInterface = &Error{}
 
 // Creates a new Error at the given position.
-func errorf(pos Position, format string, args ...interface{}) *Error {
+func errorf(pos Position, format string, args ...any) *Error {
 	return &Error{Msg: fmt.Sprintf(format, args...), Pos: pos}
 }
 
-func (e *Error) Message() string    { return e.Msg } // nolint: golint
-func (e *Error) Position() Position { return e.Pos } // nolint: golint
+func (e *Error) Message() string    { return e.Msg }
+func (e *Error) Position() Position { return e.Pos }
 
 // Error formats the error with FormatError.
 func (e *Error) Error() string { return formatError(e.Pos, e.Msg) }

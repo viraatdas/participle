@@ -12,17 +12,17 @@ import (
 )
 
 type Evaluatable interface {
-	Evaluate(ctx *Context) (interface{}, error)
+	Evaluate(ctx *Context) (any, error)
 }
 
-type Function func(args ...interface{}) (interface{}, error)
+type Function func(args ...any) (any, error)
 
 // Context for evaluation.
 type Context struct {
 	// User-provided functions.
 	Functions map[string]Function
 	// Vars defined during evaluation.
-	Vars map[string]interface{}
+	Vars map[string]any
 	// Reader from which INPUT is read.
 	Input io.Reader
 	// Writer where PRINTing will write.
@@ -37,7 +37,7 @@ func (p *Program) init() {
 	}
 }
 
-func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
+func (v *Value) Evaluate(ctx *Context) (any, error) {
 	switch {
 	case v.Number != nil:
 		return *v.Number, nil
@@ -57,7 +57,7 @@ func (v *Value) Evaluate(ctx *Context) (interface{}, error) {
 	panic("unsupported value type" + repr.String(v))
 }
 
-func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
+func (f *Factor) Evaluate(ctx *Context) (any, error) {
 	base, err := f.Base.Evaluate(ctx)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (f *Factor) Evaluate(ctx *Context) (interface{}, error) {
 	return math.Pow(baseNum, exponentNum), nil
 }
 
-func (o *OpFactor) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
+func (o *OpFactor) Evaluate(ctx *Context, lhs any) (any, error) {
 	lhsNumber, rhsNumber, err := evaluateFloats(ctx, lhs, o.Factor)
 	if err != nil {
 		return nil, participle.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
@@ -86,7 +86,7 @@ func (o *OpFactor) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) 
 	panic("unreachable")
 }
 
-func (t *Term) Evaluate(ctx *Context) (interface{}, error) {
+func (t *Term) Evaluate(ctx *Context) (any, error) {
 	lhs, err := t.Left.Evaluate(ctx)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func (t *Term) Evaluate(ctx *Context) (interface{}, error) {
 	return lhs, nil
 }
 
-func (o *OpTerm) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
+func (o *OpTerm) Evaluate(ctx *Context, lhs any) (any, error) {
 	lhsNumber, rhsNumber, err := evaluateFloats(ctx, lhs, o.Term)
 	if err != nil {
 		return nil, participle.Errorf(o.Pos, "invalid arguments for %s: %s", o.Operator, err)
@@ -115,7 +115,7 @@ func (o *OpTerm) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	panic("unreachable")
 }
 
-func (c *Cmp) Evaluate(ctx *Context) (interface{}, error) {
+func (c *Cmp) Evaluate(ctx *Context) (any, error) {
 	lhs, err := c.Left.Evaluate(ctx)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (c *Cmp) Evaluate(ctx *Context) (interface{}, error) {
 	return lhs, nil
 }
 
-func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
+func (o *OpCmp) Evaluate(ctx *Context, lhs any) (any, error) {
 	rhs, err := o.Cmp.Evaluate(ctx)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (o *OpCmp) Evaluate(ctx *Context, lhs interface{}) (interface{}, error) {
 	panic("unreachable")
 }
 
-func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
+func (e *Expression) Evaluate(ctx *Context) (any, error) {
 	lhs, err := e.Left.Evaluate(ctx)
 	if err != nil {
 		return nil, err
@@ -195,12 +195,12 @@ func (e *Expression) Evaluate(ctx *Context) (interface{}, error) {
 	return lhs, nil
 }
 
-func (c *Call) Evaluate(ctx *Context) (interface{}, error) {
+func (c *Call) Evaluate(ctx *Context) (any, error) {
 	function, ok := ctx.Functions[c.Name]
 	if !ok {
 		return nil, participle.Errorf(c.Pos, "unknown function %q", c.Name)
 	}
-	args := []interface{}{}
+	args := []any{}
 	for _, arg := range c.Args {
 		value, err := arg.Evaluate(ctx)
 		if err != nil {
@@ -222,7 +222,7 @@ func (p *Program) Evaluate(r io.Reader, w io.Writer, functions map[string]Functi
 	}
 
 	ctx := &Context{
-		Vars:      map[string]interface{}{},
+		Vars:      map[string]any{},
 		Functions: functions,
 		Input:     r,
 		Output:    w,
@@ -297,7 +297,7 @@ func (p *Program) Evaluate(r io.Reader, w io.Writer, functions map[string]Functi
 	return nil
 }
 
-func evaluateFloats(ctx *Context, lhs interface{}, rhsExpr Evaluatable) (float64, float64, error) {
+func evaluateFloats(ctx *Context, lhs any, rhsExpr Evaluatable) (float64, float64, error) {
 	rhs, err := rhsExpr.Evaluate(ctx)
 	if err != nil {
 		return 0, 0, err

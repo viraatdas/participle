@@ -46,7 +46,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		var input map[string]interface{}
+		var input map[string]any
 		if err := json.NewDecoder(f).Decode(&input); err != nil {
 			f.Close()
 			fmt.Fprintln(os.Stderr, err)
@@ -61,7 +61,7 @@ func main() {
 		}
 
 		switch r := result.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(r)
@@ -71,11 +71,11 @@ func main() {
 	}
 }
 
-func match(input map[string]interface{}, expr *pathExpr) (interface{}, error) {
-	var v interface{} = input
+func match(input map[string]any, expr *pathExpr) (any, error) {
+	var v any = input
 	for _, e := range expr.Parts {
 		switch m := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			val, ok := m[e.Obj]
 			if !ok {
 				return nil, fmt.Errorf("not found: %q", e.Obj)
@@ -84,8 +84,8 @@ func match(input map[string]interface{}, expr *pathExpr) (interface{}, error) {
 			for _, a := range e.Acc {
 				if a.Name != nil {
 					switch m := v.(type) {
-					case map[string]interface{}:
-						val, ok = m[*a.Name].(map[string]interface{})
+					case map[string]any:
+						val, ok = m[*a.Name].(map[string]any)
 						if !ok {
 							return nil, fmt.Errorf("not found: %q does not contain %q", e.Obj, *a.Name)
 						}
@@ -96,7 +96,7 @@ func match(input map[string]interface{}, expr *pathExpr) (interface{}, error) {
 				}
 				if a.Index != nil {
 					switch s := v.(type) {
-					case []interface{}:
+					case []any:
 						if len(s) <= *a.Index {
 							return nil, fmt.Errorf("not found: %q does contains %d items", e.Obj, len(s))
 						}

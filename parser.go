@@ -2,6 +2,7 @@ package participle
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -86,11 +87,11 @@ func Build[G any](options ...Option) (parser *Parser[G], err error) {
 				mappers[lexer.EOF] = append(mappers[lexer.EOF], mapper.mapper)
 			} else {
 				for _, symbol := range mapper.symbols {
-					if rn, ok := symbols[symbol]; !ok {
+					rn, ok := symbols[symbol]
+					if !ok {
 						return nil, fmt.Errorf("mapper %#v uses unknown token %q", mapper, symbol)
-					} else { // nolint: golint
-						mappers[rn] = append(mappers[rn], mapper.mapper)
 					}
+					mappers[rn] = append(mappers[rn], mapper.mapper)
 				}
 			}
 		}
@@ -254,7 +255,7 @@ func (p *Parser[G]) parseOne(ctx *parseContext, parseNode node, rv reflect.Value
 	return nil
 }
 
-func (p *Parser[G]) parseInto(ctx *parseContext, parseNode node, rv reflect.Value) error {
+func (p *Parser[G]) parseInto(ctx *parseContext, _ node, rv reflect.Value) error {
 	if rv.IsNil() {
 		return fmt.Errorf("target must be a non-nil pointer to a struct or interface, but is a nil %s", rv.Type())
 	}
@@ -274,7 +275,7 @@ func (p *Parser[G]) parseInto(ctx *parseContext, parseNode node, rv reflect.Valu
 
 func (p *Parser[G]) rootParseable(ctx *parseContext, parseable Parseable) error {
 	if err := parseable.Parse(&ctx.PeekingLexer); err != nil {
-		if err == NextMatch {
+		if errors.Is(err, NextMatch) {
 			err = &UnexpectedTokenError{Unexpected: *ctx.Peek()}
 		} else {
 			err = &ParseError{Msg: err.Error(), Pos: ctx.Peek().Pos}
@@ -306,7 +307,7 @@ func (p *Parser[G]) parseNodeFor(v reflect.Value) (node, error) {
 	if t.Kind() == reflect.Interface {
 		t = t.Elem()
 	}
-	if t.Kind() != reflect.Ptr || (t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Interface) {
+	if t.Kind() != reflect.Pointer || (t.Elem().Kind() != reflect.Struct && t.Elem().Kind() != reflect.Interface) {
 		return nil, fmt.Errorf("expected a pointer to a struct or interface, but got %s", t)
 	}
 	parseNode := p.typeNodes[t]
