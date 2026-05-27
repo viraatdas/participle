@@ -53,3 +53,20 @@ func TestUnquote(t *testing.T) {
 	}
 	require.Equal(t, expected, actual)
 }
+
+func TestUnquoteShortToken(t *testing.T) {
+	type grammar struct {
+		Text string `@String`
+	}
+	lex := lexer.MustSimple([]lexer.SimpleRule{
+		{"whitespace", `\s+`},
+		{"String", `.`},
+	})
+	parser := mustTestParser[grammar](t, participle.Lexer(lex), participle.Unquote("String"))
+	defer func() {
+		recovered := recover()
+		require.NotZero(t, recovered)
+	}()
+	_, _ = parser.Lex("", strings.NewReader(`"`))
+	t.Fatal("expected panic on token too short to be unquoted")
+}
