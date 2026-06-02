@@ -376,6 +376,34 @@ func TestHereDoc(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+func TestStatefulLexerOptionalCaptureGroupInPopAction(t *testing.T) {
+	type Plus struct {
+		LHS string `@Ident`
+		Op  string `@Op`
+		RHS string `@Ident`
+	}
+
+	def, err := lexer.New(lexer.Rules{
+		"Root": {
+			{"whitespace", ` +`, nil},
+			{"Op", `\+`, nil},
+			{"Keyword", `x`, nil},
+			{"Ident", `[[:alpha:]]([[:alnum:]])*`, nil},
+			{"percent", `%`, lexer.Push("Percent")},
+		},
+		"Percent": {
+			{"Ident", `[[:alpha:]]([[:alnum:]])*`, lexer.Pop()},
+		},
+	})
+	require.NoError(t, err)
+	parser, err := participle.Build[Plus](participle.Lexer(def))
+	require.NoError(t, err)
+
+	actual, err := parser.ParseString("", "%x + y")
+	require.NoError(t, err)
+	require.Equal(t, &Plus{LHS: "x", Op: "+", RHS: "y"}, actual)
+}
+
 func BenchmarkStateful(b *testing.B) {
 	source := strings.Repeat(`"hello ${user + "${last}"}"`, 100)
 	def := lexer.Must(lexer.New(interpolatedRules))

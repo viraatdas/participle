@@ -404,7 +404,11 @@ next:
 		if rule.Action != nil {
 			groups := make([]string, 0, len(match)/2)
 			for i := 0; i < len(match); i += 2 {
-				groups = append(groups, l.data[match[i]:match[i+1]])
+				if match[i] == -1 {
+					groups = append(groups, "")
+				} else {
+					groups = append(groups, l.data[match[i]:match[i+1]])
+				}
 			}
 			if err := rule.Action.applyAction(l, groups); err != nil {
 				return Token{}, errorf(l.pos, "lexer: rule %q: %s", rule.Name, err)
